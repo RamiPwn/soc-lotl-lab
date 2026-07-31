@@ -1,56 +1,82 @@
-<group name="windows,sysmon,lotl,">
+<group name="lolbas,sysmon,attack,">
 
-  <!-- certutil used with URL or download-related arguments -->
-  <rule id="100001" level="10">
+  <!-- T1105 - Payload transfer using certutil -->
+  <rule id="100001" level="12">
     <if_group>sysmon_event1</if_group>
-    <field name="win.eventdata.image" type="pcre2">(?i)\\certutil\.exe$</field>
-    <field name="win.eventdata.commandLine" type="pcre2">(?i)(https?://|-urlcache|-split|-f)</field>
+
+    <field name="win.eventdata.image" type="pcre2">
+      (?i)\\certutil\.exe$
+    </field>
+
+    <field name="win.eventdata.commandLine" type="pcre2">
+      (?i)(-urlcache|-urlfetch)
+    </field>
 
     <description>
-      Suspicious certutil download activity detected
+      LOLBAS - certutil used for external download
     </description>
 
     <mitre>
       <id>T1105</id>
     </mitre>
+
+    <group>lolbas_download,</group>
   </rule>
 
-  <!-- Suspicious conhost execution -->
-  <rule id="100002" level="8">
+  <!-- T1059 - Headless command execution using conhost -->
+  <rule id="100002" level="12">
     <if_group>sysmon_event1</if_group>
-    <field name="win.eventdata.image" type="pcre2">(?i)\\conhost\.exe$</field>
+
+    <field name="win.eventdata.image" type="pcre2">
+      (?i)\\conhost\.exe$
+    </field>
+
+    <field name="win.eventdata.commandLine" type="pcre2">
+      (?i)--headless
+    </field>
 
     <description>
-      Suspicious conhost execution detected
+      LOLBAS - headless command execution through conhost
     </description>
 
     <mitre>
       <id>T1059</id>
     </mitre>
+
+    <group>lolbas_exec,</group>
   </rule>
 
-  <!-- Scheduled task creation -->
+  <!-- T1053.005 - Scheduled task persistence -->
   <rule id="100003" level="10">
     <if_group>sysmon_event1</if_group>
-    <field name="win.eventdata.image" type="pcre2">(?i)\\schtasks\.exe$</field>
-    <field name="win.eventdata.commandLine" type="pcre2">(?i)(/create|/change)</field>
+
+    <field name="win.eventdata.image" type="pcre2">
+      (?i)\\schtasks\.exe$
+    </field>
+
+    <field name="win.eventdata.commandLine" type="pcre2">
+      (?i)(/create.*onlogon|/create.*onstart)
+    </field>
 
     <description>
-      Scheduled task persistence detected
+      LOLBAS - persistence through schtasks at logon or startup
     </description>
 
     <mitre>
       <id>T1053.005</id>
     </mitre>
+
+    <group>lolbas_persist,</group>
   </rule>
 
-  <!-- Correlation of the previous LOTL stages -->
+  <!-- Complete LOTL kill-chain correlation -->
   <rule id="100010" level="14" frequency="3" timeframe="300">
-    <if_matched_group>lotl</if_matched_group>
-    <same_field>agent.id</same_field>
+    <if_matched_group>lolbas_download</if_matched_group>
+    <if_matched_group>lolbas_exec</if_matched_group>
+    <if_matched_group>lolbas_persist</if_matched_group>
 
     <description>
-      LOTL attack chain detected on the same Windows endpoint
+      LOTL - complete attack chain detected
     </description>
 
     <mitre>
