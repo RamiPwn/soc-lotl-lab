@@ -21,8 +21,6 @@ Wazuh provides:
 
 The Wazuh server is connected to the SOC VLAN and uses a fixed IP address.
 
-Example:
-
 ```text
 Wazuh IP: <WAZUH_SERVER_IP>
 Network: SOC VLAN
@@ -32,24 +30,24 @@ Network: SOC VLAN
 
 ## Required Communications
 
-The Windows endpoint must be able to reach the Wazuh server.
+The Windows workstation must be able to reach the Wazuh server through OPNsense.
 
 | Port | Protocol | Purpose |
 |---:|---|---|
 | 1514 | TCP | Agent event forwarding |
 | 1515 | TCP | Agent enrollment |
-| 55000 | TCP | Wazuh API, when required |
-| 443 | TCP | Dashboard access, depending on installation |
+| 55000 | TCP | Wazuh API |
+| 443 | TCP | Wazuh dashboard |
 
-The corresponding OPNsense rules must be placed above general inter-VLAN blocking rules.
+The OPNsense rules allowing these communications must be placed above the general inter-VLAN blocking rules.
 
 ---
 
 ## Agent Enrollment
 
-Install the Wazuh agent on the Windows workstation using the package provided by the Wazuh dashboard.
+Install the Wazuh agent on the Windows workstation using the deployment command provided by the Wazuh dashboard.
 
-Configure the manager address:
+Configure the Wazuh manager address:
 
 ```text
 <WAZUH_SERVER_IP>
@@ -67,7 +65,7 @@ Verify its status:
 Get-Service WazuhSvc
 ```
 
-The endpoint should then appear in the Wazuh dashboard.
+The Windows endpoint should then appear as active in the Wazuh dashboard.
 
 ![Wazuh Agents](../assets/wazuh-agents.png)
 
@@ -75,7 +73,7 @@ The endpoint should then appear in the Wazuh dashboard.
 
 ## Sysmon Event Collection
 
-Sysmon records detailed endpoint activity such as:
+Sysmon generates detailed Windows endpoint telemetry, including:
 
 - process creation;
 - command-line arguments;
@@ -84,42 +82,52 @@ Sysmon records detailed endpoint activity such as:
 - file creation;
 - scheduled task activity.
 
-The Wazuh agent collects the Sysmon event channel through the shared agent configuration:
+The Wazuh agent is configured to collect:
+
+```text
+Microsoft-Windows-Sysmon/Operational
+```
+
+The reusable agent configuration is available here:
 
 [`configs/wazuh/agent.conf`](../configs/wazuh/agent.conf)
+
+After modifying the configuration, restart the agent:
+
+```powershell
+Restart-Service WazuhSvc
+```
 
 ---
 
 ## Custom Detection Rules
 
-The default event collection provides the telemetry required for investigation, but custom rules are used to identify the LOTL attack chain.
+Custom Wazuh rules detect the different stages of the LOTL scenario.
 
-The rules detect:
-
-| Rule ID | Behaviour |
+| Rule ID | Detection |
 |---|---|
-| `100001` | Suspicious use of `certutil.exe` |
-| `100002` | Suspicious execution involving `conhost.exe` |
+| `100001` | Payload download using `certutil.exe` |
+| `100002` | Headless execution using `conhost.exe` |
 | `100003` | Persistence using `schtasks.exe` |
-| `100010` | Correlated LOTL attack chain |
+| `100010` | Correlation of the complete attack chain |
 
 The reusable rule file is available here:
 
 [`configs/wazuh/local_rules.xml`](../configs/wazuh/local_rules.xml)
 
-Copy it to the Wazuh manager:
+Copy or merge the rules into:
 
-```bash
+```text
 /var/ossec/etc/rules/local_rules.xml
 ```
 
-Then restart the manager:
+Restart the Wazuh manager:
 
 ```bash
 sudo systemctl restart wazuh-manager
 ```
 
-Check the service:
+Verify its status:
 
 ```bash
 sudo systemctl status wazuh-manager
@@ -129,15 +137,15 @@ sudo systemctl status wazuh-manager
 
 ## Rule Testing
 
-Wazuh rules can be tested before restarting the manager:
+The rules can be tested with:
 
 ```bash
 sudo /var/ossec/bin/wazuh-logtest
 ```
 
-Paste a representative Sysmon event and verify that the expected rule is triggered.
+Representative Sysmon events can be pasted into the tool to verify which Wazuh rule is triggered.
 
-The exact Sysmon field names may vary according to the Wazuh and Sysmon configuration. The rules may therefore require small adjustments after checking the raw event received by Wazuh.
+The rule fields may need to be adapted if the received Sysmon events use a different field structure.
 
 ---
 
@@ -145,21 +153,25 @@ The exact Sysmon field names may vary according to the Wazuh and Sysmon configur
 
 ![Wazuh Alerts](../assets/wazuh-pre-alerts.png)
 
-Each stage generates a separate alert.
+Each suspicious action generates a dedicated alert.
 
-The correlation rule creates a higher-level alert when the expected sequence is detected on the same endpoint within a limited period.
+The final correlation rule creates a higher-level alert when the download, execution and persistence stages occur within the configured time window.
 
-This is more reliable than considering the execution of one legitimate binary as malicious by itself.
+This provides more context than treating the execution of one legitimate Windows binary as automatically malicious.
 
 ---
 
 ## MITRE ATT&CK Mapping
 
-![MITRE Mapping](../assets/mitre-mapping.png)
+![MITRE ATT&CK Mapping](../assets/mitre-mapping.png)
 
-The custom rules include MITRE ATT&CK references to describe the observed behaviour.
+The custom rules include MITRE ATT&CK identifiers corresponding to the detected behaviour:
 
-The mapping is based on the action performed by the binary, not only on its executable name.
+| Behaviour | MITRE ATT&CK |
+|---|---|
+| Payload transfer | `T1105` |
+| Command execution | `T1059` |
+| Scheduled task persistence | `T1053.005` |
 
 ---
 
@@ -171,16 +183,16 @@ Verify that:
 - Sysmon events reach Wazuh;
 - process command lines are visible;
 - the custom rules load without XML errors;
-- `certutil`, `conhost` and `schtasks` activity generates alerts;
-- the correlation rule generates the final LOTL alert.
+- the three attack stages generate alerts;
+- the final correlation alert is generated.
 
-Useful manager logs:
+Useful Wazuh manager logs:
 
 ```bash
 sudo tail -f /var/ossec/logs/ossec.log
 ```
 
-Useful alerts file:
+Alerts can be monitored with:
 
 ```bash
 sudo tail -f /var/ossec/logs/alerts/alerts.json
