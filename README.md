@@ -60,7 +60,6 @@ SOC-LOTL-Lab/
 |---|---|
 | `assets/` | Architecture diagrams and project screenshots |
 | `configs/` | Reusable Proxmox, OPNsense and Wazuh configurations |
-| `docs/` | Troubleshooting, lessons learned, roadmap and references |
 | `scripts/` | Payload, containment and hardening scripts |
 | `setup/` | Detailed setup notes for the main components |
 
