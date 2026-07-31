@@ -1,0 +1,42 @@
+# Example Proxmox network configuration
+# File used on the Proxmox host:
+# /etc/network/interfaces
+#
+# Replace interface names, IP addresses and gateway values
+# before using this configuration.
+
+auto lo
+iface lo inet loopback
+
+# Physical interface used for Proxmox management
+iface eno1 inet manual
+
+# Physical interface used for the OPNsense WAN
+iface eno2 inet manual
+
+# Proxmox management bridge
+auto vmbr0
+iface vmbr0 inet static
+    address 192.168.1.10/24
+    gateway 192.168.1.1
+    bridge-ports eno1
+    bridge-stp off
+    bridge-fd 0
+
+# OPNsense WAN bridge
+auto vmbr1
+iface vmbr1 inet manual
+    bridge-ports eno2
+    bridge-stp off
+    bridge-fd 0
+
+# Internal VLAN-aware bridge
+auto vmbr2
+iface vmbr2 inet manual
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+
+source /etc/network/interfaces.d/*
