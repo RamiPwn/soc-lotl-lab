@@ -1,0 +1,63 @@
+<group name="windows,sysmon,lotl,">
+
+  <!-- certutil used with URL or download-related arguments -->
+  <rule id="100001" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\certutil\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(https?://|-urlcache|-split|-f)</field>
+
+    <description>
+      Suspicious certutil download activity detected
+    </description>
+
+    <mitre>
+      <id>T1105</id>
+    </mitre>
+  </rule>
+
+  <!-- Suspicious conhost execution -->
+  <rule id="100002" level="8">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\conhost\.exe$</field>
+
+    <description>
+      Suspicious conhost execution detected
+    </description>
+
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <!-- Scheduled task creation -->
+  <rule id="100003" level="10">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\schtasks\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(/create|/change)</field>
+
+    <description>
+      Scheduled task persistence detected
+    </description>
+
+    <mitre>
+      <id>T1053.005</id>
+    </mitre>
+  </rule>
+
+  <!-- Correlation of the previous LOTL stages -->
+  <rule id="100010" level="14" frequency="3" timeframe="300">
+    <if_matched_group>lotl</if_matched_group>
+    <same_field>agent.id</same_field>
+
+    <description>
+      LOTL attack chain detected on the same Windows endpoint
+    </description>
+
+    <mitre>
+      <id>T1105</id>
+      <id>T1059</id>
+      <id>T1053.005</id>
+    </mitre>
+  </rule>
+
+</group>
