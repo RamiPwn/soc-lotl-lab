@@ -52,7 +52,6 @@ SOC-LOTL-Lab/
 ├── README.md
 ├── assets/
 ├── configs/
-├── docs/
 ├── scripts/
 └── setup/
 ```
